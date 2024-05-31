@@ -25,20 +25,19 @@ sudo apt install -y python3-pip
 check_status
 
 # Install PostgreSQL
-sudo apt install -y postgresql
-check_status
+#sudo apt install -y postgresql
+#check_status
 
 # Create PostgreSQL user
 sudo -u postgres createuser -s megmaa
 check_status
-sudo -u postgres psql -c "alter role wayonctechdbtest with password 'P@ssw0rd';"
+sudo -u postgres psql -c "alter role megmaa with password 'P@ssw0rd';"
 check_status
 
 # Clone Odoo repository
 mkdir odoo17
 cd odoo17
 git clone https://github.com/odoo/odoo.git --depth 1 --branch 17.0 odoo17
-git clone https://github.com/karthikhatti/Odoo17_EE --depth 1 --branch master odoo17_ee_modules
 check_status
 
 # Set up Python virtual environment
