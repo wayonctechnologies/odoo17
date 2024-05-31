@@ -29,7 +29,7 @@ sudo apt install -y postgresql
 check_status
 
 # Create PostgreSQL user
-sudo -u postgres createuser -s wayonctechdbtest
+sudo -u postgres createuser -s megmaa
 check_status
 sudo -u postgres psql -c "alter role wayonctechdbtest with password 'P@ssw0rd';"
 check_status
@@ -42,9 +42,9 @@ git clone https://github.com/karthikhatti/Odoo17_EE --depth 1 --branch master od
 check_status
 
 # Set up Python virtual environment
-python3.10 -m venv vwayonctest
+python3.10 -m venv vmegmaa
 check_status
-source vwayonctest/bin/activate
+source vmegmaa/bin/activate
 check_status
 
 # Install Odoo dependencies
