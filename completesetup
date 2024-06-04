@@ -1,0 +1,175 @@
+#!/bin/bash
+
+# Function to check command execution status
+check_status() {
+    if [ $? -ne 0 ]; then
+        echo "Error: Command execution failed. Exiting..."
+        exit 1
+    fi
+}
+
+# Ask for the PostgreSQL username
+read -p "Enter the PostgreSQL username: " pg_username
+
+# Ask for the PostgreSQL password
+read -sp "Enter the PostgreSQL password: " pg_password
+echo
+
+# Ask for the virtual environment name
+read -p "Enter the name for the virtual environment: " venv_name
+
+# Ask for the server_name for Nginx
+read -p "Enter the server_name for Nginx (e.g., wayonc.in www.wayonc.in): " server_name
+
+# Ask for the admin password for Odoo
+read -sp "Enter the admin password for Odoo: " admin_passwd
+echo
+
+# Ask for the name of the Odoo service
+read -p "Enter the name for the Odoo service: " odoo_service_name
+
+# Fetch current username
+current_user=$(whoami)
+
+# Update package list
+sudo apt update && check_status
+
+# Upgrade installed packages
+sudo apt upgrade -y
+check_status
+
+# Install required packages
+sudo apt install -y git python3-pip libldap2-dev libpq-dev libsasl2-dev postgresql python3.10-venv nginx certbot python3-certbot-nginx
+check_status
+
+# Create PostgreSQL user
+sudo -u postgres createuser -s "$pg_username" && check_status
+sudo -u postgres psql -c "alter role $pg_username with password '$pg_password';" && check_status
+
+# Clone Odoo repository
+sudo mkdir -p /opt/odoo17
+sudo chown $current_user:$current_user /opt/odoo17
+cd /opt/odoo17
+git clone https://github.com/odoo/odoo.git --depth 1 --branch 17.0 odoo17
+check_status
+
+# Set up Python virtual environment
+python3.10 -m venv "/opt/$venv_name"
+check_status
+source "/opt/$venv_name/bin/activate"
+check_status
+
+# Install Odoo dependencies
+pip install wheel
+pip install -r /opt/odoo17/requirements.txt
+check_status
+
+# Configure Odoo
+conf_file="/opt/odoo17/debian/odoo.conf"
+cat <<EOL > $conf_file
+[options]
+addons_path = /opt/odoo17/addons
+admin_passwd = $admin_passwd
+db_host = False
+db_port = False
+db_user = $pg_username
+db_password = $pg_password
+logfile = /var/log/odoo/odoo.log
+EOL
+
+# Update PostgreSQL configuration
+sudo sed -i 's/peer/trust/g' /etc/postgresql/14/main/pg_hba.conf
+check_status
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql
+check_status
+
+# Create Odoo service file
+odoo_service="[Unit]
+Description=$server_name
+Requires=postgresql.service
+After=network.target postgresql@14-main.service
+[Service]
+# Ubuntu/Debian convention:
+Type=simple
+User=$current_user
+ExecStart=/opt/$venv_name/bin/python3.10 /opt/odoo17/odoo-bin -c /opt/odoo17/debian/odoo.conf
+Restart=always
+[Install]
+WantedBy=default.target
+"
+
+echo "$odoo_service" | sudo tee "/etc/systemd/system/$odoo_service_name.service"
+check_status
+
+# Reload systemd and start Odoo service
+sudo systemctl daemon-reload
+sudo systemctl start $odoo_service_name
+sudo systemctl enable $odoo_service_name
+check_status
+
+# Create Nginx configuration file for Odoo
+nginx_conf="upstream $server_name {
+server 127.0.0.1:8069;
+}
+upstream odoochat {
+server 127.0.0.1:8072;
+}
+
+server {
+listen 80;
+server_name $server_name www.$server_name;
+
+proxy_read_timeout 720s;
+proxy_connect_timeout 720s;
+proxy_send_timeout 720s;
+
+# Add Headers for odoo proxy mode
+proxy_set_header X-Forwarded-Host \$host;
+proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto \$scheme;
+proxy_set_header X-Real-IP \$remote_addr;
+
+# log
+access_log /var/log/nginx/odoo.access.log;
+error_log /var/log/nginx/odoo.error.log;
+
+# Redirect requests to odoo backend server
+location / {
+proxy_redirect off;
+proxy_pass http://$server_name;
+}
+location /longpolling {
+proxy_pass http://odoochat;
+}
+
+# common gzip
+gzip_types text/css text/less text/plain text/xml application/xml application/json application/javascript;
+gzip on;
+
+client_body_in_file_only clean;
+client_body_buffer_size 32K;
+client_max_body_size 500M;
+sendfile on;
+send_timeout 600s;
+keepalive_timeout 720;
+}
+"
+
+nginx_conf_file="/etc/nginx/sites-available/$server_name"
+echo "$nginx_conf" | sudo tee "$nginx_conf_file"
+sudo ln -s "$nginx_conf_file" "/etc/nginx/sites-enabled/"
+check_status
+
+# Test Nginx configuration and restart
+sudo nginx -t
+check_status
+sudo systemctl restart nginx
+check_status
+
+# Obtain and configure SSL certificate
+sudo certbot --nginx -d $server_name -d www.$server_name
+check_status
+
+echo "Odoo installation and configuration completed successfully."
