@@ -42,6 +42,10 @@ check_status
 sudo apt install -y git python3-pip libldap2-dev libpq-dev libsasl2-dev postgresql python3.10-venv nginx certbot python3-certbot-nginx
 check_status
 
+# Allow HTTP and HTTPS traffic through UFW
+sudo ufw allow http
+sudo ufw allow https
+
 # Create PostgreSQL user
 sudo -u postgres createuser -s "$pg_username" && check_status
 sudo -u postgres psql -c "ALTER ROLE $pg_username WITH PASSWORD '$pg_password';" && check_status
@@ -74,7 +78,6 @@ db_host = False
 db_port = False
 db_user = $pg_username
 db_password = $pg_password
-db_name = $pg_dbname
 logfile = /var/log/odoo/odoo.log
 EOL
 
@@ -177,3 +180,4 @@ echo "Odoo installation and configuration completed successfully."
 
 # Delete the cloned repository directory
 sudo rm -rf ~/odoo17
+
