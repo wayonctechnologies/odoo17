@@ -28,9 +28,6 @@ echo
 # Ask for the name of the Odoo service
 read -p "Enter the name for the Odoo service: " odoo_service_name
 
-# Ask for the PostgreSQL database name
-read -p "Enter the PostgreSQL database name: " pg_dbname
-
 # Fetch current username
 current_user=$(whoami)
 
@@ -48,9 +45,6 @@ check_status
 # Create PostgreSQL user
 sudo -u postgres createuser -s "$pg_username" && check_status
 sudo -u postgres psql -c "ALTER ROLE $pg_username WITH PASSWORD '$pg_password';" && check_status
-
-# Create PostgreSQL database
-sudo -u postgres createdb -O "$pg_username" "$pg_dbname" && check_status
 
 # Clone Odoo repository
 sudo mkdir -p /opt/odoo17
