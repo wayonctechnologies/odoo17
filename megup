@@ -19,7 +19,7 @@ echo
 read -p "Enter the name for the virtual environment: " venv_name
 
 # Ask for the server_name for Nginx
-read -p "Enter the server_name for Nginx (e.g., wayonc.in www.wayonc.in): " server_name
+read -p "Enter the server_name for Nginx (e.g., wayonc.in): " server_name
 
 # Ask for the admin password for Odoo
 read -sp "Enter the admin password for Odoo: " admin_passwd
@@ -27,6 +27,9 @@ echo
 
 # Ask for the name of the Odoo service
 read -p "Enter the name for the Odoo service: " odoo_service_name
+
+# Ask for the PostgreSQL database name
+read -p "Enter the PostgreSQL database name: " pg_dbname
 
 # Fetch current username
 current_user=$(whoami)
@@ -44,33 +47,40 @@ check_status
 
 # Create PostgreSQL user
 sudo -u postgres createuser -s "$pg_username" && check_status
-sudo -u postgres psql -c "alter role $pg_username with password '$pg_password';" && check_status
+sudo -u postgres psql -c "ALTER ROLE $pg_username WITH PASSWORD '$pg_password';" && check_status
+
+# Create PostgreSQL database
+sudo -u postgres createdb -O "$pg_username" "$pg_dbname" && check_status
 
 # Clone Odoo repository
-git clone https://github.com/odoo/odoo.git --depth 1 --branch 17.0 odoo17
+sudo mkdir -p /opt/odoo17
+sudo chown $current_user:$current_user /opt/odoo17
+cd /opt/odoo17
+git clone https://github.com/odoo/odoo.git --depth 1 --branch 17.0 .
 check_status
 
 # Set up Python virtual environment
-python3.10 -m venv "$venv_name"
+python3.10 -m venv "/opt/$venv_name"
 check_status
-source "$venv_name/bin/activate"
+source "/opt/$venv_name/bin/activate"
 check_status
 
 # Install Odoo dependencies
 pip install wheel
-pip install -r odoo17/requirements.txt
+pip install -r /opt/odoo17/requirements.txt
 check_status
 
 # Configure Odoo
-conf_file="odoo17/debian/odoo.conf"
+conf_file="/opt/odoo17/debian/odoo.conf"
 cat <<EOL > $conf_file
 [options]
-addons_path = $PWD/odoo17/addons
+addons_path = /opt/odoo17/addons
 admin_passwd = $admin_passwd
 db_host = False
 db_port = False
 db_user = $pg_username
 db_password = $pg_password
+db_name = $pg_dbname
 logfile = /var/log/odoo/odoo.log
 EOL
 
@@ -91,7 +101,7 @@ After=network.target postgresql@14-main.service
 # Ubuntu/Debian convention:
 Type=simple
 User=$current_user
-ExecStart=$PWD/$venv_name/bin/python3.10 $PWD/odoo17/odoo-bin -c $PWD/$conf_file
+ExecStart=/opt/$venv_name/bin/python3.10 /opt/odoo17/odoo-bin -c /opt/odoo17/debian/odoo.conf
 Restart=always
 [Install]
 WantedBy=default.target
@@ -150,7 +160,7 @@ client_body_buffer_size 32K;
 client_max_body_size 500M;
 sendfile on;
 send_timeout 600s;
-keepalive_timeout 720;
+keepalive_timeout 720s;
 }
 "
 
@@ -170,3 +180,6 @@ sudo certbot --nginx -d $server_name -d www.$server_name
 check_status
 
 echo "Odoo installation and configuration completed successfully."
+
+# Delete the cloned repository directory
+sudo rm -rf ~/odoo17
