@@ -12,8 +12,8 @@ check_status() {
 read -p "Enter the PostgreSQL username: " pg_username
 
 # Ask for the PostgreSQL password
-read -sp "Enter the PostgreSQL password: " pg_password
-echo
+#read -sp "Enter the PostgreSQL password: " pg_password
+#echo
 
 # Ask for the virtual environment name
 read -p "Enter the name for the virtual environment: " venv_name
@@ -22,8 +22,8 @@ read -p "Enter the name for the virtual environment: " venv_name
 read -p "Enter the server_name for Nginx (e.g., wayonc.in): " server_name
 
 # Ask for the admin password for Odoo
-read -sp "Enter the admin password for Odoo: " admin_passwd
-echo
+#read -sp "Enter the admin password for Odoo: " admin_passwd
+#echo
 
 # Ask for the name of the Odoo service
 read -p "Enter the name for the Odoo service: " odoo_service_name
@@ -48,7 +48,7 @@ sudo ufw allow https
 
 # Create PostgreSQL user
 sudo -u postgres createuser -s "$pg_username" && check_status
-sudo -u postgres psql -c "ALTER ROLE $pg_username WITH PASSWORD '$pg_password';" && check_status
+sudo -u postgres psql -c "ALTER ROLE $pg_username WITH PASSWORD 'P@ssw0rd';" && check_status
 
 # Clone Odoo repository
 sudo mkdir -p /opt/odoo17
@@ -73,7 +73,7 @@ conf_file="/opt/odoo17/debian/odoo.conf"
 cat <<EOL > $conf_file
 [options]
 addons_path = /opt/odoo17/addons
-admin_passwd = $admin_passwd
+admin_passwd = P@ssw0rd@2024 #$admin_passwd
 db_host = False
 db_port = False
 db_user = $pg_username
