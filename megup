@@ -79,6 +79,7 @@ db_port = False
 db_user = $pg_username
 db_password = $pg_password
 logfile = /var/log/odoo/odoo.log
+longpolling_port = 8072
 EOL
 
 # Update PostgreSQL configuration
