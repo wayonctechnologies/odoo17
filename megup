@@ -52,7 +52,8 @@ sudo -u postgres psql -c "ALTER ROLE $pg_username WITH PASSWORD '$pg_password';"
 
 # Clone Odoo repository
 sudo mkdir -p /opt/odoo17
-sudo chown $current_user:$current_user /opt/odoo17
+sudo chown -R $current_user:$current_user /opt/odoo17
+sudo chmod -R 777 /opt/odoo17
 cd /opt/odoo17
 git clone https://github.com/odoo/odoo.git --depth 1 --branch 17.0 .
 check_status
@@ -179,5 +180,4 @@ check_status
 echo "Odoo installation and configuration completed successfully."
 
 # Delete the cloned repository directory
-sudo rm -rf ~/odoo17
-
+sudo rm -rf /home/$current_user/odoo17
