@@ -180,4 +180,4 @@ check_status
 echo "Odoo installation and configuration completed successfully."
 
 # Delete the cloned repository directory
-sudo rm -rf /home/$current_user/odoo17
+sudo rm -rf /home/$(whoami)/odoo17
